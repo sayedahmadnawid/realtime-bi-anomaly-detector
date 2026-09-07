@@ -1,0 +1,41 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Node / React (dashboard) ---
+dashboard/node_modules/
+dashboard/build/
+dashboard/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Docker ---
+*.pid
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Data / local artifacts ---
+*.db
+*.sqlite3
+data/
