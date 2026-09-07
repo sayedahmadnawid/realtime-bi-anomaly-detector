@@ -7,7 +7,7 @@ anomalies can be channel/category-specific, not just global.
 
 ## Phase 1 — Day 1 skeleton
 - [ ] Project setup (Python env, Docker, git)
-- [ ] Data generator v1 (single event, baseline seasonality + noise)
+- [x] Data generator v1 (single event, baseline seasonality + noise)
 - [ ] PostgreSQL (Docker) — raw events table
 - [ ] Ingestion v1 — generator writes directly to Postgres
 - [ ] API v1 — FastAPI, read last N rows
