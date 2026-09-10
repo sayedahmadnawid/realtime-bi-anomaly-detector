@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: novacart_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: novacart
+      POSTGRES_PASSWORD: novacart
+      POSTGRES_DB: bi_anomaly
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d   # schema.sql auto-runs on first boot
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novacart -d bi_anomaly"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: novacart_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
+      SIM_SPEED_SECONDS_PER_TICK: "1"   # 1 real second = 1 simulated minute
+    volumes:
+      - ..:/app   # live-mount source so you don't rebuild on every edit
+    command: python -m ingestion.ingest
+
+volumes:
+  pg_data:

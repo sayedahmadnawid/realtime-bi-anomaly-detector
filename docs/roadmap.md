@@ -8,8 +8,8 @@ anomalies can be channel/category-specific, not just global.
 ## Phase 1 — Day 1 skeleton
 - [ ] Project setup (Python env, Docker, git)
 - [x] Data generator v1 (single event, baseline seasonality + noise)
-- [ ] PostgreSQL (Docker) — raw events table
-- [ ] Ingestion v1 — generator writes directly to Postgres
+- [x] PostgreSQL (Docker) — raw events table
+- [x] Ingestion v1 — generator writes directly to Postgres
 - [ ] API v1 — FastAPI, read last N rows
 - [ ] Dashboard v1 — single React page, polls API, line chart
 
