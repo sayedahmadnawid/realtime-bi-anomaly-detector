@@ -57,3 +57,80 @@ _Coming online as Phase 1 is built out — see roadmap._
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md) for the full Day 1 → MVP → Advanced plan.
+
+
+real-time-bi/
+│
+├── api/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── routes/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   └── dependencies.py
+│   └── tests/
+│
+├── dashboard/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   └── types/
+│   └── package.json
+│
+├── generator/
+│   ├── events/
+│   │   ├── orders.py
+│   │   ├── payments.py
+│   │   └── traffic.py
+│   ├── scenarios/
+│   │   ├── normal.py
+│   │   ├── revenue_drop.py
+│   │   ├── payment_spike.py
+│   │   └── traffic_spike.py
+│   └── main.py
+│
+├── ingestion/
+│   ├── producers/
+│   ├── consumers/
+│   ├── schemas/
+│   └── main.py
+│
+├── processing/
+│   ├── metrics/
+│   ├── features/
+│   ├── anomaly/
+│   │   ├── statistical.py
+│   │   ├── isolation_forest.py
+│   │   └── detector.py
+│   └── main.py
+│
+├── infra/
+│   ├── docker/
+│   ├── postgres/
+│   ├── kafka/
+│   └── docker-compose.yml
+│
+├── docs/
+│   ├── architecture.md
+│   ├── data-model.md
+│   ├── api.md
+│   ├── anomaly-detection.md
+│   └── decisions.md
+│
+├── scripts/
+│   ├── setup.sh
+│   ├── reset.sh
+│   └── seed.py
+│
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
+│
+├── .env.example
+├── .gitignore
+├── requirements.txt
+├── docker-compose.yml
+└── README.md

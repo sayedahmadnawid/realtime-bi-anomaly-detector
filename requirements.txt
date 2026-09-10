@@ -1,3 +1,4 @@
 # Phase 1: generator + ingestion + API
 # (kept minimal on purpose; add as each phase needs more)
 pytest==8.3.3
+psycopg2-binary==2.9.9
