@@ -33,6 +33,23 @@ services:
     volumes:
       - ..:/app   # live-mount source so you don't rebuild on every edit
     command: python -m ingestion.ingest
+    
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: novacart_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   pg_data:
