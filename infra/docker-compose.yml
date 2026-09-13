@@ -11,7 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d   # schema.sql auto-runs on first boot
+      - ./init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U novacart -d bi_anomaly"]
       interval: 5s
@@ -21,7 +21,7 @@ services:
   app:
     build:
       context: ..
-      dockerfile: infra/Dockerfile
+      dockerfile: infra/docker/python.Dockerfile
     container_name: novacart_app
     restart: unless-stopped
     depends_on:
@@ -29,15 +29,15 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
-      SIM_SPEED_SECONDS_PER_TICK: "1"   # 1 real second = 1 simulated minute
+      SIM_SPEED_SECONDS_PER_TICK: "1"
     volumes:
-      - ..:/app   # live-mount source so you don't rebuild on every edit
+      - ..:/app
     command: python -m ingestion.ingest
-    
+
   api:
     build:
       context: ..
-      dockerfile: infra/Dockerfile
+      dockerfile: infra/docker/python.Dockerfile
     container_name: novacart_api
     restart: unless-stopped
     depends_on:
@@ -50,6 +50,22 @@ services:
     volumes:
       - ..:/app
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: ../infra/docker/dashboard.Dockerfile
+    container_name: novacart_dashboard
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../dashboard:/app
+      - /app/node_modules
 
 volumes:
   pg_data:
