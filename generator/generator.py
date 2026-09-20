@@ -18,8 +18,10 @@ Usage:
 import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from typing import Optional
 
 from generator import config
+from generator.anomalies import AnomalyEngine
 
 
 def seasonality_multiplier(ts: datetime) -> float:
@@ -82,6 +84,28 @@ class NovaCartGenerator:
         if seed is not None:
             random.seed(seed)
         self._inventory = _InventoryState()
+        self.anomalies = AnomalyEngine()
+
+    def schedule_anomaly(
+        self,
+        anomaly_type: str,
+        metric: str,
+        start_time: datetime,
+        duration_minutes: int,
+        category: Optional[str] = None,
+        magnitude: float = 1.0,
+    ):
+        """Convenience passthrough so callers don't need to import
+        AnomalyEngine directly. See generator/anomalies.py for details."""
+        return self.anomalies.schedule(
+            anomaly_type=anomaly_type,
+            metric=metric,
+            start_time=start_time,
+            duration_minutes=duration_minutes,
+            category=category,
+            magnitude=magnitude,
+        )
+
 
     def _maybe_restock(self, ts: datetime) -> None:
         """Once per day (at hour 3, quiet overnight), restock inventory
@@ -113,12 +137,15 @@ class NovaCartGenerator:
         mult = seasonality_multiplier(ts)
 
         # --- traffic & signups (site-wide) ---
-        traffic = _sample_count(config.BASELINE_PER_MINUTE["traffic"] * mult)
+        traffic_mean = config.BASELINE_PER_MINUTE["traffic"] * mult
+        traffic_mean = self.anomalies.apply(ts, "traffic", None, traffic_mean)
+        traffic = _sample_count(traffic_mean)
         events.append(
             {"event_time": ts, "metric": "traffic", "category": None, "value": traffic}
         )
 
         signup_mean = traffic * config.SIGNUP_RATE_OF_TRAFFIC
+        signup_mean = self.anomalies.apply(ts, "signups", None, signup_mean)
         signups = _sample_count(signup_mean)
         events.append(
             {"event_time": ts, "metric": "signups", "category": None, "value": signups}
@@ -128,11 +155,13 @@ class NovaCartGenerator:
         total_orders_mean = config.BASELINE_PER_MINUTE["orders"] * mult
         for cat, cfg in config.CATEGORIES.items():
             cat_order_mean = total_orders_mean * cfg["relative_weight"]
+            cat_order_mean = self.anomalies.apply(ts, "orders", cat, cat_order_mean)
             order_count = _sample_count(cat_order_mean)
 
             revenue = 0.0
             if order_count > 0:
                 revenue = order_count * _noisy(cfg["avg_order_value"], std=0.2)
+            revenue = self.anomalies.apply(ts, "revenue", cat, revenue)
 
             events.append(
                 {"event_time": ts, "metric": "orders", "category": cat, "value": order_count}
@@ -141,22 +170,45 @@ class NovaCartGenerator:
                 {"event_time": ts, "metric": "revenue", "category": cat, "value": round(revenue, 2)}
             )
 
-            # inventory decrements by units sold this tick
+            # inventory decrements by units sold this tick (based on the
+            # *true* order count, independent of any revenue/orders anomaly
+            # distortion above - inventory anomalies are injected separately)
             self._inventory.levels[cat] = max(
                 0, self._inventory.levels[cat] - order_count
+            )
+
+            # --- payments ---
+            # order_count above represents *successful* orders/payments.
+            # failed_mean is independent of order volume - a payment gateway
+            # issue can spike failures even while order volume looks normal.
+            failed_mean = order_count * config.BASELINE_PAYMENT_FAILURE_RATE
+            failed_mean = self.anomalies.apply(ts, "payment_failures", cat, failed_mean)
+            failed_count = _sample_count(failed_mean)
+            payment_attempts = order_count + failed_count
+
+            events.append(
+                {"event_time": ts, "metric": "payment_attempts", "category": cat, "value": payment_attempts}
+            )
+            events.append(
+                {"event_time": ts, "metric": "payment_failures", "category": cat, "value": failed_count}
             )
 
         self._maybe_restock(ts)
 
         for cat in config.CATEGORIES:
+            level = self.anomalies.apply(
+                ts, "inventory_level", cat, self._inventory.levels[cat]
+            )
             events.append(
                 {
                     "event_time": ts,
                     "metric": "inventory_level",
                     "category": cat,
-                    "value": self._inventory.levels[cat],
+                    "value": round(level, 0),
                 }
             )
+
+        self.anomalies.prune_expired(ts)
 
         return events
 

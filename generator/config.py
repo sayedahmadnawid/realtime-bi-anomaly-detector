@@ -73,3 +73,9 @@ NOISE_STD = 0.15
 # Signups as a fraction of traffic (rough conversion-to-signup rate),
 # with its own small independent noise applied separately.
 SIGNUP_RATE_OF_TRAFFIC = 0.02
+
+# --- Payments -----------------------------------------------------------
+# Baseline fraction of payment attempts that fail under normal conditions
+# (card declines, timeouts, etc.) - independent of order volume itself.
+# payment_attempts = successful orders + failed attempts this tick.
+BASELINE_PAYMENT_FAILURE_RATE = 0.03

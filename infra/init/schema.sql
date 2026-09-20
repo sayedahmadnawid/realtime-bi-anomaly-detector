@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS raw_events (
     id           BIGSERIAL PRIMARY KEY,
     event_time   TIMESTAMPTZ NOT NULL,   -- simulated business time from the generator
-    metric       TEXT NOT NULL,          -- 'orders' | 'revenue' | 'traffic' | 'signups' | 'inventory_level'
+    metric       TEXT NOT NULL,          -- 'orders' | 'revenue' | 'traffic' | 'signups' | 'inventory_level' | 'payment_attempts' | 'payment_failures'
     category     TEXT,                   -- 'electronics' | 'home_kitchen' | 'apparel' | NULL (site-wide metrics)
     value        NUMERIC NOT NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()  -- when we actually ingested it

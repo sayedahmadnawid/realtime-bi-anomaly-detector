@@ -21,12 +21,22 @@ source of truth for the data generator, schema, and dashboard content.
 | `traffic` | count | Site visits/sessions | Traffic flatlines — possible outage |
 | `signups` | count | New customer accounts | Signups spike unusually — possible bot activity |
 | `inventory_level` | count | Stock remaining, per category | Inventory drops faster than sales explain — shrinkage/error |
+| `payment_attempts` | count | Total payment attempts (success + failure), per category | Attempts stay normal but failures spike — gateway issue, not a demand problem |
+| `payment_failures` | count | Failed payment attempts, per category | Failure rate spikes while traffic/orders look normal — payment gateway outage |
 
 All metrics (except `inventory_level`, which is a running stock level) are
 counted/summed per time bucket (e.g. per minute, rolled up to 5-min/hourly
 for aggregation) and are further broken out by `category` where applicable
-(`orders`, `revenue`, `inventory_level`). `traffic` and `signups` are
-site-wide, not category-specific.
+(`orders`, `revenue`, `inventory_level`, `payment_attempts`,
+`payment_failures`). `traffic` and `signups` are site-wide, not
+category-specific.
+
+`payment_attempts` and `payment_failures` are independent of order volume
+by design: `orders` represents successful payments, but a payment gateway
+issue can spike `payment_failures` even while traffic and order volume
+look completely normal — a genuinely different anomaly shape than a
+demand-side drop, and a good candidate for multivariate/root-cause
+detection later (Phase 3).
 
 ## Baseline behavior (what "normal" looks like)
 

@@ -24,8 +24,12 @@ def test_tick_returns_expected_metrics():
     gen = NovaCartGenerator(seed=1)
     ts = datetime(2026, 6, 15, 18, 0, tzinfo=timezone.utc)
     events = gen.tick(ts)
+    
     metrics_seen = {e["metric"] for e in events}
-    assert metrics_seen == {"traffic", "signups", "orders", "revenue", "inventory_level"}
+    assert metrics_seen == {
+        "traffic", "signups", "orders", "revenue", "inventory_level",
+        "payment_attempts", "payment_failures",
+    }
 
     categories_seen = {e["category"] for e in events if e["metric"] == "orders"}
     assert categories_seen == set(config.CATEGORIES.keys())

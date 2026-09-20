@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-VALID_METRICS = {"orders", "revenue", "traffic", "signups", "inventory_level"}
+VALID_METRICS = {"orders", "revenue", "traffic", "signups", "inventory_level", "payment_attempts", "payment_failures"}
 
 
 @app.get("/health")
