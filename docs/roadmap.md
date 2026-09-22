@@ -18,8 +18,10 @@ Goal: prove the end-to-end loop works, even if "dumb."
 ## Phase 2 — MVP
 - [ ] Data generator v2 — seasonality, trend, noise, injectable anomaly modes
       (sudden drop, sudden spike, slow drift, flatline)
-- [ ] Message queue (Redis Streams or RabbitMQ) between generator and processing
-- [ ] Processing worker — consumes queue, aggregates into time buckets
++ [x] Message queue (Redis Streams or RabbitMQ) between generator and processing
++ [x] Processing worker — consumes queue, writes raw events
+      (time-bucketing done at query time by the detection engine, not
+      pre-aggregated — raw_events is already at 1-min granularity)
 - [ ] Anomaly detection v1 (statistical) — moving avg + z-score, seasonal baseline
 - [ ] API v2 — metrics, time-series, anomalies list/detail endpoints
 - [ ] Dashboard v2 — charts with anomaly markers, live anomaly feed, filters

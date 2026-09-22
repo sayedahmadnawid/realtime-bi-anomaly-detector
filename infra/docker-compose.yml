@@ -18,6 +18,18 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: novacart_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build:
       context: ..
@@ -25,14 +37,32 @@ services:
     container_name: novacart_app
     restart: unless-stopped
     depends_on:
-      postgres:
+      redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
+      REDIS_URL: redis://redis:6379/0
       SIM_SPEED_SECONDS_PER_TICK: "1"
     volumes:
       - ..:/app
     command: python -m ingestion.ingest
+  
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+    container_name: novacart_worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ..:/app
+    command: python -m processing.consumer
 
   api:
     build:
