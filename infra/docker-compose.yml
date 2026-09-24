@@ -45,7 +45,7 @@ services:
     volumes:
       - ..:/app
     command: python -m ingestion.ingest
-  
+
   worker:
     build:
       context: ..
@@ -63,6 +63,22 @@ services:
     volumes:
       - ..:/app
     command: python -m processing.consumer
+
+  detector:
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+    container_name: novacart_detector
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
+      DETECTION_INTERVAL_SECONDS: "15"
+    volumes:
+      - ..:/app
+    command: python -m detection.detector
 
   api:
     build:

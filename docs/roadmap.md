@@ -22,7 +22,7 @@ Goal: prove the end-to-end loop works, even if "dumb."
 + [x] Processing worker — consumes queue, writes raw events
       (time-bucketing done at query time by the detection engine, not
       pre-aggregated — raw_events is already at 1-min granularity)
-- [ ] Anomaly detection v1 (statistical) — moving avg + z-score, seasonal baseline
+- [x] Anomaly detection v1 (statistical) — moving avg + z-score, seasonal baseline
 - [ ] API v2 — metrics, time-series, anomalies list/detail endpoints
 - [ ] Dashboard v2 — charts with anomaly markers, live anomaly feed, filters
 - [ ] Alerting v1 — Slack webhook / email on detected anomaly

@@ -1,19 +1,12 @@
--- Raw event storage for the NovaCart data pipeline.
--- One row per (timestamp, metric, category) reading emitted by the generator.
-
-CREATE TABLE IF NOT EXISTS raw_events (
-    id           BIGSERIAL PRIMARY KEY,
-    event_time   TIMESTAMPTZ NOT NULL,   -- simulated business time from the generator
-    metric       TEXT NOT NULL,          -- 'orders' | 'revenue' | 'traffic' | 'signups' | 'inventory_level' | 'payment_attempts' | 'payment_failures'
-    category     TEXT,                   -- 'electronics' | 'home_kitchen' | 'apparel' | NULL (site-wide metrics)
-    value        NUMERIC NOT NULL,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()  -- when we actually ingested it
-);
-
--- This is the access pattern every downstream piece (aggregation, detection,
--- API) will use: "give me this metric/category over a time range."
-CREATE INDEX IF NOT EXISTS idx_raw_events_metric_category_time
-    ON raw_events (metric, category, event_time);
+-- Adds the anomalies table for the detection engine (Phase 2).
+--
+-- This is a MIGRATION, not part of infra/init/ - your Postgres volume
+-- already exists from Phase 1, and Postgres only runs infra/init/*.sql
+-- on a completely fresh (empty) data directory. Apply this by hand:
+--
+--   docker compose exec -T postgres psql -U novacart -d bi_anomaly < infra/migrations/001_add_anomalies_table.sql
+--
+-- (or open a psql shell in the postgres container and paste it in)
 
 CREATE TABLE IF NOT EXISTS anomalies (
     id              BIGSERIAL PRIMARY KEY,
