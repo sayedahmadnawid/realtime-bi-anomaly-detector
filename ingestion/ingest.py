@@ -1,17 +1,9 @@
 """
 Ingestion v2: runs the NovaCart generator in a loop and publishes each
 tick's events onto a Redis Stream, rather than writing to Postgres
-directly. This is the "producer" half of Phase 2's queue architecture -
-see processing/consumer.py for the "consumer" half that actually persists
-the data.
-
-Decoupling generation from persistence this way means a slow/unavailable
-database no longer blocks generation, and multiple consumers could later
-read the same stream for different purposes (raw storage, real-time
-aggregation, alerting) without the producer knowing or caring.
-
-Simulated time advances by 1 minute per tick. How fast that happens in
-real time is controlled by SIM_SPEED_SECONDS_PER_TICK.
+directly. Also polls a Redis list each tick for scenario-trigger commands
+queued via POST /scenarios/{name}/trigger, so incidents can be demoed on
+an already-running system.
 """
 
 import json
@@ -23,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import redis
 
 from generator.generator import NovaCartGenerator
+from generator.scenarios.registery import run_scenario
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,17 +24,32 @@ logging.basicConfig(
 log = logging.getLogger("ingest")
 
 STREAM_KEY = "novacart:events"
+SCENARIO_TRIGGER_KEY = "novacart:scenario_triggers"
 
 
 def _serialize(events: list[dict]) -> str:
-    """Redis Stream fields must be strings, so we serialize the whole
-    tick's batch of events as one JSON payload (datetimes -> ISO strings)
-    rather than one stream entry per event."""
     return json.dumps(
         [{**e, "event_time": e["event_time"].isoformat()} for e in events]
     )
 
 
+def _check_for_triggered_scenarios(r: redis.Redis, generator: NovaCartGenerator, sim_time: datetime) -> None:
+    """Non-blocking: pop and apply any scenario commands queued via
+    POST /scenarios/{name}/trigger. LPOP returns None immediately if the
+    list is empty, so this doesn't slow down the tick loop."""
+    while True:
+        raw = r.lpop(SCENARIO_TRIGGER_KEY)
+        if raw is None:
+            return
+        try:
+            command = json.loads(raw)
+            name = command.pop("scenario")
+            run_scenario(generator, name, sim_time, **command)
+            log.warning("Triggered scenario '%s' at sim_time=%s with %s", name, sim_time.isoformat(), command)
+        except Exception:
+            log.exception("Failed to apply triggered scenario command: %s", raw)
+
+// 
 def main() -> None:
     sim_speed = float(os.environ.get("SIM_SPEED_SECONDS_PER_TICK", "1"))
     redis_url = os.environ.get("REDIS_URL")
@@ -53,12 +61,15 @@ def main() -> None:
     r = redis.from_url(redis_url, decode_responses=True)
     r.ping()
     log.info("Connected to Redis")
-
+// 
     generator = NovaCartGenerator()
     sim_time = datetime.now(timezone.utc)
 
+// 
     try:
         while True:
+            _check_for_triggered_scenarios(r, generator, sim_time)
+
             events = generator.tick(sim_time)
             r.xadd(STREAM_KEY, {"payload": _serialize(events)})
 
