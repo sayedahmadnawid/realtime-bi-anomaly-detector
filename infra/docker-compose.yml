@@ -76,6 +76,7 @@ services:
     environment:
       DATABASE_URL: postgresql://novacart:novacart@postgres:5432/bi_anomaly
       DETECTION_INTERVAL_SECONDS: "15"
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     volumes:
       - ..:/app
     command: python -m detection.detector

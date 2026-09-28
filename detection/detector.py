@@ -20,6 +20,7 @@ from detection.rules import (
     get_recent_buckets,
     insert_anomaly,
 )
+from detection.alerts import send_slack_alert
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,6 +58,7 @@ def run_once(conn) -> int:
             anomaly.window_end.isoformat(), anomaly.expected_value,
             anomaly.actual_value, anomaly.z_score, anomaly.severity,
         )
+        send_slack_alert(anomaly)
 
     return new_anomalies
 
