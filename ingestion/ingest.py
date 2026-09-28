@@ -49,7 +49,7 @@ def _check_for_triggered_scenarios(r: redis.Redis, generator: NovaCartGenerator,
         except Exception:
             log.exception("Failed to apply triggered scenario command: %s", raw)
 
-// 
+
 def main() -> None:
     sim_speed = float(os.environ.get("SIM_SPEED_SECONDS_PER_TICK", "1"))
     redis_url = os.environ.get("REDIS_URL")
@@ -61,11 +61,10 @@ def main() -> None:
     r = redis.from_url(redis_url, decode_responses=True)
     r.ping()
     log.info("Connected to Redis")
-// 
+
     generator = NovaCartGenerator()
     sim_time = datetime.now(timezone.utc)
 
-// 
     try:
         while True:
             _check_for_triggered_scenarios(r, generator, sim_time)

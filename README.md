@@ -52,7 +52,9 @@ Alerts (Slack / email)
 
 ## Getting started
 
-_Coming online as Phase 1 is built out — see roadmap._
+See [docs/running-locally.md](docs/running-locally.md) for how to start
+everything, tune simulation speed, reset the database, and trigger a
+scenario live.
 
 ## Roadmap
 

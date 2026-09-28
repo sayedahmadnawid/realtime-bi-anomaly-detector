@@ -73,9 +73,18 @@ def main() -> None:
             # block=5000: wait up to 5s for new messages before looping
             # again (lets us stay responsive to e.g. future shutdown
             # signals without a tight busy-loop)
-            response = r.xreadgroup(
-                GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: ">"}, count=10, block=5000
-            )
+            try:
+                response = r.xreadgroup(
+                    GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: ">"}, count=10, block=5000
+                )
+            except redis.exceptions.TimeoutError:
+                # Known redis-py quirk: the client-side socket can time out
+                # slightly before the server's own block timer does. This
+                # just means "no new messages arrived in time" - identical
+                # to xreadgroup returning None - so treat it the same way
+                # rather than crashing the worker.
+                continue
+            
             if not response:
                 continue
 

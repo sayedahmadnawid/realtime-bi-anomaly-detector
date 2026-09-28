@@ -41,7 +41,7 @@ services:
         condition: service_healthy
     environment:
       REDIS_URL: redis://redis:6379/0
-      SIM_SPEED_SECONDS_PER_TICK: "1"
+      SIM_SPEED_SECONDS_PER_TICK: "5"
     volumes:
       - ..:/app
     command: python -m ingestion.ingest
