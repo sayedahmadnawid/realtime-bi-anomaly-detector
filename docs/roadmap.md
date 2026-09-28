@@ -23,8 +23,8 @@ Goal: prove the end-to-end loop works, even if "dumb."
       (time-bucketing done at query time by the detection engine, not
       pre-aggregated — raw_events is already at 1-min granularity)
 - [x] Anomaly detection v1 (statistical) — moving avg + z-score, seasonal baseline
-- [ ] API v2 — metrics, time-series, anomalies list/detail endpoints
-- [ ] Dashboard v2 — charts with anomaly markers, live anomaly feed, filters
+- [x] API v2 — metrics, time-series, anomalies list/detail endpoints
+- [x] Dashboard v2 — charts with anomaly markers, live anomaly feed, filters
 - [ ] Alerting v1 — Slack webhook / email on detected anomaly
 - [ ] Deploy to AWS (smallest footprint: ECS/EC2 + RDS + S3 + SES/SNS)
 
