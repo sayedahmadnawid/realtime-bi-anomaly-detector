@@ -21,6 +21,7 @@ from detection.rules import (
     insert_anomaly,
 )
 from detection.alerts import send_slack_alert
+from detection.multivariate import check_multivariate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,37 +29,38 @@ logging.basicConfig(
 )
 log = logging.getLogger("detector")
 
+def _record_if_new(conn, anomaly) -> bool:
+    """Insert + log + alert, unless this window was already recorded."""
+    if anomaly_already_recorded(conn, anomaly):
+        return False
+
+    insert_anomaly(conn, anomaly)
+    log.warning(
+        "ANOMALY  metric=%s category=%s window=%s..%s expected=%.2f actual=%.2f z=%.2f severity=%s",
+        anomaly.metric, anomaly.category, anomaly.window_start.isoformat(),
+        anomaly.window_end.isoformat(), anomaly.expected_value,
+        anomaly.actual_value, anomaly.z_score, anomaly.severity,
+    )
+    send_slack_alert(anomaly)
+    return True
+
 
 def run_once(conn) -> int:
     """One full detection pass over every series. Returns the number of
     new anomalies recorded."""
     reference_time = get_latest_event_time(conn)
-    if reference_time is None:
-        log.info("No data in raw_events yet - skipping this pass")
-        return 0
-
-    series_list = get_distinct_series(conn)
     new_anomalies = 0
 
-    for metric, category in series_list:
+    for metric, category in get_distinct_series(conn):
         buckets = get_recent_buckets(conn, metric, category, reference_time)
         anomaly = evaluate_series(metric, category, buckets)
+        if anomaly is not None and _record_if_new(conn, anomaly):
+            new_anomalies += 1
 
-        if anomaly is None:
-            continue
-
-        if anomaly_already_recorded(conn, anomaly):
-            continue
-
-        insert_anomaly(conn, anomaly)
+    # Phase 3: all feature metrics judged together
+    mv_anomaly = check_multivariate(conn)
+    if mv_anomaly is not None and _record_if_new(conn, mv_anomaly):
         new_anomalies += 1
-        log.warning(
-            "ANOMALY  metric=%s category=%s window=%s..%s expected=%.2f actual=%.2f z=%.2f severity=%s",
-            anomaly.metric, anomaly.category, anomaly.window_start.isoformat(),
-            anomaly.window_end.isoformat(), anomaly.expected_value,
-            anomaly.actual_value, anomaly.z_score, anomaly.severity,
-        )
-        send_slack_alert(anomaly)
 
     return new_anomalies
 
