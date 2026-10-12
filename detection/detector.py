@@ -46,9 +46,10 @@ def _record_if_new(conn, anomaly) -> bool:
 
 
 def run_once(conn) -> int:
-    """One full detection pass over every series. Returns the number of
-    new anomalies recorded."""
     reference_time = get_latest_event_time(conn)
+    if reference_time is None:
+        log.info("no events yet, skipping detection")
+        return 0
     new_anomalies = 0
 
     for metric, category in get_distinct_series(conn):
@@ -57,10 +58,9 @@ def run_once(conn) -> int:
         if anomaly is not None and _record_if_new(conn, anomaly):
             new_anomalies += 1
 
-    # Phase 3: all feature metrics judged together
-    mv_anomaly = check_multivariate(conn)
-    if mv_anomaly is not None and _record_if_new(conn, mv_anomaly):
-        new_anomalies += 1
+    for mv_anomaly in check_multivariate(conn):
+        if _record_if_new(conn, mv_anomaly):
+            new_anomalies += 1
 
     return new_anomalies
 

@@ -21,32 +21,54 @@ FEATURE_METRICS = ["traffic", "signups", "orders", "revenue"]
 
 Z_THRESHOLD_MV = 3.0
 
+RATIO_NAMES = ["orders_per_visitor", "revenue_per_order"]   # signups/traffic dropped: too noisy
 
-def check_multivariate(conn) -> Optional[Anomaly]:
-    """Run the multivariate check; return an Anomaly row or None."""
+
+def evaluate_latest_bucket(rows):
+    """Return [(name, bucket_time, z, expected, actual), ...], one per ratio,
+    or [] if there isn't enough history yet."""
+    if len(rows) < MIN_BASELINE_BUCKETS + 2:
+        return []
+
+    features = np.array([row[1:] for row in rows])      # drop the time column
+    ratios = to_ratios(features)[:, [0, 2]]             # orders/traffic, revenue/orders
+    bucket_time = rows[-2][0]                           # latest COMPLETE bucket
+
+    baseline = ratios[:-2]                              # everything before it
+    candidate = ratios[-2]                              # the bucket we judge
+
+    med = np.median(baseline, axis=0)                   # typical value, per ratio
+    mad = np.median(np.abs(baseline - med), axis=0) * 1.4826   # typical spread
+    mad = np.maximum(mad, 0.05 * np.abs(med))           # floor: never divide by ~0
+    z = (candidate - med) / mad
+
+    results = []
+    for name, zi, expected, actual in zip(RATIO_NAMES, z, med, candidate):
+        results.append((name, bucket_time, float(zi), float(expected), float(actual)))
+    return results
+
+
+def check_multivariate(conn) -> list[Anomaly]:
     reference_time = get_latest_event_time(conn)
     if reference_time is None:
-        return None
+        return []
 
     rows = merge_series_into_rows(get_multivariate_series(conn, reference_time))
-    result = evaluate_latest_bucket(rows)
-    if result is None:
-        return None
-
-    bucket_time, z, score, median = result
-    if z > -Z_THRESHOLD_MV:          # not unusual enough: no anomaly
-        return None
-
-    return Anomaly(
-        metric="multivariate",
-        category=None,
-        window_start=bucket_time,
-        window_end=bucket_time + timedelta(minutes=BUCKET_MINUTES),
-        expected_value=round(median, 3),
-        actual_value=round(score, 3),
-        z_score=round(z, 2),
-        severity="high" if abs(z) >= Z_HIGH_SEVERITY else "medium",
-    )
+    anomalies = []
+    for name, bucket_time, z, expected, actual in evaluate_latest_bucket(rows):
+        if abs(z) < Z_THRESHOLD_MV:
+            continue
+        anomalies.append(Anomaly(
+            metric=name,
+            category=None,
+            window_start=bucket_time,
+            window_end=bucket_time + timedelta(minutes=BUCKET_MINUTES),
+            expected_value=round(expected, 3),
+            actual_value=round(actual, 3),
+            z_score=round(z, 2),
+            severity="high" if abs(z) >= Z_HIGH_SEVERITY else "medium",
+        ))
+    return anomalies
 
 def get_metric_buckets(
     conn, metric: str, reference_time: datetime
@@ -86,32 +108,6 @@ def to_ratios(a: np.ndarray) -> np.ndarray:
         revenue / np.maximum(orders, 1),
     ])
 
-
-def evaluate_latest_bucket(rows: list[list]):
-    """Return (bucket_time, z, score) if the latest complete bucket is
-    anomalous, else None."""
-    if len(rows) < MIN_BASELINE_BUCKETS + 2:
-        return None
-
-    features = np.array([row[1:] for row in rows])
-    baseline = to_ratios(features[:-2])
-    candidate = to_ratios(features[-2:-1])
-    bucket_time = rows[-2][0]
-
-    model = IsolationForest(random_state=42)
-    model.fit(baseline)
-
-    baseline_scores = model.score_samples(baseline)
-    median = np.median(baseline_scores)
-    mad = max(np.median(np.abs(baseline_scores - median)) * 1.4826, 0.01)
-
-    score = model.score_samples(candidate)[0]
-    z = (score - median) / mad                                    # 4: how far from typical, in MADs
-
-    return (bucket_time, float(z), float(score), float(median))
-
-    return (bucket_time, float(z), float(score), float(median))   # never runs
-
 def get_multivariate_series(
     conn, reference_time: datetime
 ) -> dict[str, dict[datetime, float]]:
@@ -139,14 +135,8 @@ def merge_series_into_rows(series: dict[str, dict]) -> list[list]:
 
 
 if __name__ == "__main__":
-    # Quick manual check against the live database.
-    from detection.rules import get_latest_event_time
-    from ingestion.db import get_connection
-
+    from ingestion.db import get_connection   # use whatever import you already have here
     conn = get_connection()
-    ref = get_latest_event_time(conn)
-    rows = merge_series_into_rows(get_multivariate_series(conn, ref))
-    print("columns: bucket_time,", ", ".join(FEATURE_METRICS))
-    for r in rows[-5:]:
+    rows = merge_series_into_rows(get_multivariate_series(conn, get_latest_event_time(conn)))
+    for r in evaluate_latest_bucket(rows):
         print(r)
-    print("check:", check_multivariate(conn))
